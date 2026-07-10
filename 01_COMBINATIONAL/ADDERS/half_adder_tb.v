@@ -23,7 +23,7 @@
 module half_adder_tb;
 reg A,B;
 wire SUM,CARRY;
-half_adder_structural H(A,B,SUM,CARRY);
+Half_Adder H(A,B,SUM,CARRY);
 initial
 begin
 $monitor($time,"A=%b,B=%b,SUM=%b,CARRY=%b",A,B,SUM,CARRY);
