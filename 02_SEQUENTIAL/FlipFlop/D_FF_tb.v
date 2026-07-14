@@ -27,6 +27,7 @@ D_FF Z(D,S,R,CLK,Q,QBar);
 initial
 begin
 $monitor($time," D=%b,S=%b,R=%b,CLK=%b,Q=%b,QBar=%b",D,S,R,CLK,Q,QBar);
+// Set and Reset are active low here 
 #5 D=1;S=0;R=1;
 #5 D=0;S=1;R=0;
 #5 D=1;S=1;R=1;
