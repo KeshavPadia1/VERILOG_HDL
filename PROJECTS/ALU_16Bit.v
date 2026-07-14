@@ -1,32 +1,47 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 12.07.2026 11:07:14
-// Design Name: 
-// Module Name: ALU_16Bit
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
-
-module ALU_16Bit(A,B,Z,CARRY,SIGN,PARITY,ZERO,OVERFLOW);
+module ALU_16Bit(A,B,OPR,Z,SIGN,PARITY,ZERO,OVERFLOW);
 input[15:0] A,B;
-output[15:0] Z;
-output CARRY,SIGN,PARITY,ZERO,OVERFLOW;
-assign {CARRY,Z} = A + B;
+output reg[15:0] Z;
+output SIGN,PARITY,ZERO;
+output reg OVERFLOW;
+input[1:0] OPR;
+reg[31:0] mul_full;
+parameter ADD=2'b00, SUB=2'b01, MUL=2'B10, DIV=2'B11;
+  
+always @(*)
+ begin
+  case(OPR) 
+ADD: 
+begin
+Z = A+B; 
+OVERFLOW = (A[15]&B[15]&(~Z[15])) | ((~A[15])&(~B[15])&Z[15]);
+end
+SUB: 
+begin
+Z = A-B; 
+OVERFLOW = (A[15]&(~B[15])&(~Z[15])) | ((~A[15])&(B[15])&Z[15]);
+end
+MUL: 
+begin
+mul_full = A*B;
+OVERFLOW = |mul_full[31:16];
+Z = mul_full[15:0];
+end
+DIV:  
+if(B==0) 
+begin
+Z = 16'hffff;
+OVERFLOW = 1;
+end
+else begin
+Z= A/B;
+OVERFLOW =0;
+end
+  endcase
+ end
+  
 assign SIGN = Z[15];
 assign PARITY = ~^Z;
 assign ZERO = ~|Z;
-assign OVERFLOW = (A[15]&B[15]&(~Z[15])) | ((~A[15])&(~B[15])&Z[15]);
 endmodule
