@@ -21,13 +21,25 @@
 
 
 module Ripple_Adder_4bit(A,B,Cin,S,Cout);
-input[3:0] A,B;
-wire[2:0] t;
+parameter N = 4;
+
+input[N-1:0] A,B;
+wire[N:0] carry;
 input Cin;
-output[3:0] S;
+output[N-1:0] S;
 output Cout;
-full_adder F1(A[0],B[0],Cin,S[0],t[0]);
-full_adder F2(A[1],B[1],t[0],S[1],t[1]);
-full_adder F3(A[2],B[2],t[1],S[2],t[2]);
-full_adder F4(A[3],B[3],t[2],S[3],Cout);
+assign carry[0] = Cin;
+assign Cout = carry[N];
+
+genvar i;
+generate for(i=0;i<N;i=i+1)
+begin: fa_loop
+wire t1,t2,t3;
+xor G1(t1,A[i],B[i]);
+xor G2(S[i],t1,carry[i]);
+and G3(t2,A[i],B[i]);
+and G4(t3,t1,carry[i]);
+or G5(carry[i+1],t2,t3);
+end
+endgenerate
 endmodule
