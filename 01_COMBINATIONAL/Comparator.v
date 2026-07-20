@@ -20,7 +20,21 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module Comparator(
+module Comparator(A,B,sel,z);
 
-    );
+input[1:0] sel;
+input A,B;
+output reg z;
+
+always @(*)
+begin
+case(sel)
+2'b00: z = A>B?1:0;
+2'b01: z = A<B?1:0;
+2'b10: z = A==B?1:0;
+2'b11: z = A!=B?1:0;
+default: z = 1'bx;
+endcase
+end
+
 endmodule
