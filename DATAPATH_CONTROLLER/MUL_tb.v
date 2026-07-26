@@ -4,10 +4,10 @@ module MUL_tb;
 
 reg[15:0] Data_in;
 reg Clk,START;
-wire RST,Done,LdA,LdB,LdP,ClrP,DecB,EqZ;
+wire Done,LdA,LdB,LdP,ClrP,DecB,EqZ;
 
 MUL_DATAPATH M1(LdA,LdB,LdP,ClrP,DecB,EqZ,Data_in,Clk);
-MUL_CONTROLLER M2(Clk,RST,Done,EqZ,START,LdA,LdB,LdP,ClrP,DecB);
+MUL_CONTROLLER M2(Clk,Done,EqZ,START,LdA,LdB,LdP,ClrP,DecB);
 
 initial
 begin
