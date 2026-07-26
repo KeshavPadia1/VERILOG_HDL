@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
-module MUL_CONTROLLER(Clk,RST,Done,EqZ,START,LdA,LdB,LdP,ClrP,DecB);
+module MUL_CONTROLLER(Clk,Done,EqZ,START,LdA,LdB,LdP,ClrP,DecB);
 
-input Clk,EqZ,START,RST;
+input Clk,EqZ,START;
 output reg LdA,LdB,LdP,ClrP,DecB,Done;
 
 reg[2:0] STATE;
