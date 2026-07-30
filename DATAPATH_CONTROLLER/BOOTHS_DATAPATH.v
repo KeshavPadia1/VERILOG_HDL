@@ -11,7 +11,7 @@ wire[4:0] Count;
 assign EqZ = ~|Count;
 assign Q0 = Q[0];
 
-ShiftReg S1(A,Z,Z[15],LdA,ClrA,SftA,Clk);
+ShiftReg S1(A,Z,A[15],LdA,ClrA,SftA,Clk);
 ShiftReg S2(Q,Data_in,A[0],LdQ,ClrQ,SftQ,Clk);
 PIPO P1(M,Data_in,LdM,Clk);
 DFF D1(Qm1,Q[0],Clrff,Clk);
@@ -30,7 +30,7 @@ always @(posedge Clk)
 begin
 if(Clr) d_out <=0;
 else if(Ld) d_out <=d_in;
-else if(Sft) d_out <= {Bit,d_in[15:1]};
+else if(Sft) d_out <= {Bit,d_out[15:1]};
 end
 
 endmodule
