@@ -11,7 +11,7 @@ reg[7:0] d_out;
 
 assign data = (cs && rd)? d_out : 8'bz;
 
-always @(posedge clk)
+always @(posedge clk) // we can keep this asynchronous also like to the change of addr,cs,rd,wr
 if(cs && wr && !rd) memory[addr] = data;
 
 always @(posedge clk)
