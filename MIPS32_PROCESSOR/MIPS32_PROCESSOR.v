@@ -1,26 +1,65 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 14.08.2026 19:44:41
-// Design Name: 
-// Module Name: MIPS32_PROCESSOR
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+
+module MIPS32_PROCESSOR(CLK1,CLK2);
+
+input CLK1,CLK2; // TWO PHASE CLOCK TO SOLVE RACE THROUGH CONDN IN TRANSP LATCHES
+
+reg[31:0] PC,IF_ID_NPC,IF_ID_IR; // LATCH BETW IF AND ID
+reg[31:0] ID_EX_NPC,ID_EX_IR,ID_EX_A,ID_EX_B,ID_EX_IMM; // LATCH BETW ID AND EX
+reg[31:0] EX_MEM_IR,EX_MEM_ALUOUT,EX_MEM_B; // PASSING B IS ONLY FOR SW
+reg       EX_MEM_COND; // THIS AND UPPER FOR LATCH BETWEEN EX AND MEM
+reg[31:0] MEM_WB_LMD,MEM_WB_ALUOUT,MEM_WB_IR; // LATCH BETW MEM AND WB
+
+reg TAKEN_BRANCH; // REQ TO NOT EXECUTE AFTER BRANCH INSTRUCTION
+reg HALTED; // SET AFTER HLT INSTRUCTION IS COMPLETED(IN WB STAGE)
+
+reg[31:0] REGBANK[31:0]; // 32X32 REGISTER
+reg[31:0] MEMORY[1023:0]; // MEMORY BANK
+
+parameter ADD=6'b000000,SUB=6'b000001,AND=6'b000010,OR=6'b000011,
+          SLT=6'b000100,MUL=6'b000101,HLT=6'b111111,LW=6'b001000,
+          SW=6'b001001,ADDI=6'b001010,SUBI=6'b001011,SLTI=6'b001100,
+          BNEQZ=6'b001101,BEQZ=6'b001110; // SPECIFICALLY FOR OPCODE
+       
+parameter RR_ALU=3'b000,RM_ALU=3'b001,LOAD=3'b010,
+          STORE=3'b011,BRANCH=3'b100,HALT=3'b101; // FOR TYPE
+
+always @(posedge CLK1) // IF(INSTRUCTION FETCHING) STAGE
+
+if(HALTED == 0) // NO MORE FETCHING WHEN HALTED=1 GETS DETECT
+begin
+
+if((EX_MEM_IR[31:26] == BEQZ) && (EX_MEM_COND == 1) ||
+   (EX_MEM_IR[31:26] == BNEQZ) && (EX_MEM_COND == 0))
+begin
+   IF_ID_IR <= #2 MEMORY[EX_MEM_ALUOUT]; // TIME DELAY IS TO AVOID RACE THROUGH CONDITION
+   IF_ID_NPC <= #2 EX_MEM_ALUOUT + 1;
+   PC <= #2 EX_MEM_ALUOUT + 1;
+   TAKEN_BRANCH <= #2 1'b1;
+end
+
+else
+begin
+   IF_ID_IR <= #2 MEMORY[PC];
+   IF_ID_NPC <= #2 PC+1;
+   PC <= #2 PC+1;
+end
+
+end
+
+always @(posedge CLK2) // ID(INSTRUCTION DECODE) STAGE
+begin
+
+if(IF_ID_IR[25:21] == 5'b00000) ID_EX_A <= #2 0; // FOR R0 REGISTER
+else ID_EX_A <= #2 REGBANK[IF_ID_IR[25:21]];
+
+if(IF_ID_IR[20:16] == 5'b00000) ID_EX_B <= #2 0; // FOR R0 REGISTER
+else ID_EX_B <= #2 REGBANK[IF_ID_IR[20:16]];
+
+ID_EX_NPC <= #2 IF_ID_NPC;
+ID_EX_IR <= #2 IF_ID_IR;
+ID_EX_IMM <= #2 {{16{IF_ID_IR[15]}}, {IF_ID_IR[15:0]}}; // SIGN EXTENSION
 
 
-module MIPS32_PROCESSOR(
 
-    );
 endmodule
