@@ -1,0 +1,51 @@
+`timescale 1ns / 1ps
+
+module MIPS32_PROCESSOR_tb;
+
+reg CLK1,CLK2;
+integer K;
+
+MIPS32_PROCESSOR M1(CLK1,CLK2);
+
+initial
+begin
+CLK1=0;
+forever #5 CLK1 = ~CLK1;
+end
+
+initial
+begin
+CLK2=1;
+forever #5 CLK2 = ~CLK2;
+end
+
+initial
+begin
+for(K=0;K<32;K=K+1)
+begin
+M1.REGBANK[K] = K;
+end 
+// Q) LOAD A WORD IN MEMORY ADDRESS 120, ADD 45 TO IT AND STORE THE WORD IN MEMORY 121
+                                                // ADDI   RS    RT      IMM 
+M1.MEMORY[0] = 32'h28010078; // ADDI R1,R0,120 -- 001010 00000 00001 0000000001111000
+M1.MEMORY[1] = 32'h0C631800; // OR R3,R3,R3 --> DUMMY INSTRUCTION
+M1.MEMORY[2] = 32'h20220000; // LW R2, 0(R1)
+M1.MEMORY[3] = 32'h0C631800; // OR R3,R3,R3
+M1.MEMORY[4] = 32'h2842002d; // ADDI R2,R2,45
+M1.MEMORY[5] = 32'h0C631800; // OR R3,R3,R3
+M1.MEMORY[6] = 32'h24220001; // SW R2,1(R1)
+M1.MEMORY[7] = 32'hfc000000; // HLT
+
+M1.MEMORY[120] = 85;
+
+M1.PC=0;
+M1.IF_ID_IR = 32'h0c631800; // STARTING IR WITH DUMMY INSTRUCTION BCZ IT STARTES FROM X
+M1.TAKEN_BRANCH=0;
+M1.HALTED=0;
+
+
+#500 $display("MEM[120]: %4d, MEM[121]: %4d",M1.MEMORY[120],M1.MEMORY[121]);
+#10 $finish;
+
+end
+endmodule
