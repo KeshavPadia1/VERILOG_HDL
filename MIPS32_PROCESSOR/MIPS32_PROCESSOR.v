@@ -8,6 +8,7 @@ reg[31:0] PC,IF_ID_NPC,IF_ID_IR; // LATCH BETW IF AND ID
 reg[31:0] ID_EX_NPC,ID_EX_IR,ID_EX_A,ID_EX_B,ID_EX_IMM; // LATCH BETW ID AND EX
 reg[31:0] EX_MEM_IR,EX_MEM_ALUOUT,EX_MEM_B; // PASSING B IS ONLY FOR SW
 reg       EX_MEM_COND; // THIS AND UPPER FOR LATCH BETWEEN EX AND MEM
+reg[2:0] ID_EX_TYPE,EX_MEM_TYPE,MEM_WB_TYPE;
 reg[31:0] MEM_WB_LMD,MEM_WB_ALUOUT,MEM_WB_IR; // LATCH BETW MEM AND WB
 
 reg TAKEN_BRANCH; // REQ TO NOT EXECUTE AFTER BRANCH INSTRUCTION
@@ -25,12 +26,13 @@ parameter RR_ALU=3'b000,RM_ALU=3'b001,LOAD=3'b010,
           STORE=3'b011,BRANCH=3'b100,HALT=3'b101; // FOR TYPE
 
 always @(posedge CLK1) // IF(INSTRUCTION FETCHING) STAGE
-
+begin
 if(HALTED == 0) // NO MORE FETCHING WHEN HALTED=1 GETS DETECT
 begin
 
-if((EX_MEM_IR[31:26] == BEQZ) && (EX_MEM_COND == 1) ||
-   (EX_MEM_IR[31:26] == BNEQZ) && (EX_MEM_COND == 0))
+if(((EX_MEM_IR[31:26] == BEQZ) && (EX_MEM_COND == 1)) ||
+   ((EX_MEM_IR[31:26] == BNEQZ) && (EX_MEM_COND == 0)))
+   
 begin
    IF_ID_IR <= #2 MEMORY[EX_MEM_ALUOUT]; // TIME DELAY IS TO AVOID RACE THROUGH CONDITION
    IF_ID_NPC <= #2 EX_MEM_ALUOUT + 1;
@@ -44,12 +46,13 @@ begin
    IF_ID_NPC <= #2 PC+1;
    PC <= #2 PC+1;
 end
-
+end
 end
 
 always @(posedge CLK2) // ID(INSTRUCTION DECODE) STAGE
 begin
-
+if(HALTED == 0)
+begin
 if(IF_ID_IR[25:21] == 5'b00000) ID_EX_A <= #2 0; // FOR R0 REGISTER
 else ID_EX_A <= #2 REGBANK[IF_ID_IR[25:21]];
 
@@ -60,6 +63,92 @@ ID_EX_NPC <= #2 IF_ID_NPC;
 ID_EX_IR <= #2 IF_ID_IR;
 ID_EX_IMM <= #2 {{16{IF_ID_IR[15]}}, {IF_ID_IR[15:0]}}; // SIGN EXTENSION
 
+case(IF_ID_IR[31:26]) // SET 3 BIT TYPE
+ADD,SUB,AND,OR,SLT,MUL: ID_EX_TYPE <= #2 RR_ALU;
+ADDI,SUBI,SLTI: ID_EX_TYPE <= #2 RM_ALU;
+SW: ID_EX_TYPE <= #2 STORE;
+LW: ID_EX_TYPE <= #2 LOAD;
+BEQZ,BNEQZ: ID_EX_TYPE <= #2 BRANCH;
+HLT: ID_EX_TYPE <= #2 HALT;
+default: ID_EX_TYPE <= #2 HALT;
+endcase
 
+end
+end
+
+always @(posedge CLK1) // EX(EXECUTE) STAGE
+begin
+
+if(HALTED==0)
+begin
+EX_MEM_TYPE <= #2 ID_EX_TYPE;
+EX_MEM_IR <= #2 ID_EX_IR;
+TAKEN_BRANCH <= #2 0; // DEFAULT VALUE OF TAKEN_BRANCH - WHEN NEEDED IF WILL MAKE IT 1
+
+case(ID_EX_TYPE)
+RR_ALU: begin
+        case(ID_EX_IR[31:26])
+        ADD: EX_MEM_ALUOUT <= #2 ID_EX_A + ID_EX_B;
+        SUB: EX_MEM_ALUOUT <= #2 ID_EX_A - ID_EX_B;
+        MUL: EX_MEM_ALUOUT <= #2 ID_EX_A * ID_EX_B;
+        AND: EX_MEM_ALUOUT <= #2 ID_EX_A & ID_EX_B;
+        OR: EX_MEM_ALUOUT <= #2 ID_EX_A | ID_EX_B;
+        SLT: EX_MEM_ALUOUT <= #2 ID_EX_A < ID_EX_B;
+        default: EX_MEM_ALUOUT <= #2 32'hxxxxxxxx;
+        endcase
+        end
+RM_ALU: begin
+        case(ID_EX_IR[31:26])
+        ADDI: EX_MEM_ALUOUT <= #2 ID_EX_A + ID_EX_IMM;
+        SUBI: EX_MEM_ALUOUT <= #2 ID_EX_A - ID_EX_IMM;
+        SLTI: EX_MEM_ALUOUT <= #2 ID_EX_A < ID_EX_IMM;
+        default: EX_MEM_ALUOUT <= #2 32'hxxxxxxxx;
+        endcase
+        end
+LOAD,STORE: begin
+            EX_MEM_ALUOUT <= #2 ID_EX_A + ID_EX_IMM;
+            EX_MEM_B <= #2 ID_EX_B;
+            end
+BRANCH: begin
+        EX_MEM_ALUOUT <= #2 ID_EX_NPC + ID_EX_IMM;
+        EX_MEM_COND <= #2 (ID_EX_A == 0); // IR[25:21] - THE RS REGISTER
+        end
+endcase
+
+end
+end
+
+always @(posedge CLK2) // MEM(MEMORY) STAGE
+begin
+if(HALTED == 0)
+begin
+
+MEM_WB_TYPE <= #2 EX_MEM_TYPE;
+MEM_WB_IR <= #2 EX_MEM_IR;
+
+case(EX_MEM_TYPE)
+RR_ALU,RM_ALU: MEM_WB_ALUOUT <= #2 EX_MEM_ALUOUT;
+LOAD: MEM_WB_LMD <= #2 MEMORY[EX_MEM_ALUOUT];
+STORE: if(TAKEN_BRANCH == 0)
+       begin
+       MEMORY[EX_MEM_ALUOUT] <= #2 EX_MEM_B;
+       end
+endcase
+end
+end
+
+always @(posedge CLK1) // WB(WRITE BACK) STAGE
+begin
+
+if(TAKEN_BRANCH == 0) // BEFORE WRITING ANYTHING IN REGISTER
+begin
+case(MEM_WB_TYPE)
+RR_ALU: REGBANK[MEM_WB_IR[15:11]] <= #2 MEM_WB_ALUOUT;
+RM_ALU: REGBANK[MEM_WB_IR[20:16]] <= #2 MEM_WB_ALUOUT;
+LOAD: REGBANK[MEM_WB_IR[20:16]] <= #2 MEM_WB_LMD;
+HALT: HALTED <= #2 1'b1; // SET HALTED=1 IF DETECTED
+endcase
+end
+end
 
 endmodule
