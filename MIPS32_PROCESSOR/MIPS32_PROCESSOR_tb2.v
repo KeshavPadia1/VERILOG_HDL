@@ -1,0 +1,53 @@
+`timescale 1ns / 1ps
+
+module MIPS32_PROCESSOR_tb2;
+
+reg CLK1,CLK2;
+integer K;
+
+MIPS32_PROCESSOR M2(CLK1,CLK2);
+
+initial
+begin
+CLK1=0;
+forever #5 CLK1 = ~CLK1;
+end
+
+initial
+begin
+CLK2=1;
+forever #5 CLK2 = ~CLK2;
+end
+
+initial
+begin
+
+for(K=0;K<32;K=K+1)
+begin
+M2.REGBANK[K] = K;
+end 
+
+// Q) TO COMPUTE THE FACTORIAL OF NUMBER N STORED IN MEM LOC 200 AND RESULT WILL BE IN 198
+M2.MEMORY[0]  = 32'h280a00c8;  // ADDI   R10,R0,200
+M2.MEMORY[1]  = 32'h28020001;  // ADDI   R2,R0,1
+M2.MEMORY[2]  = 32'h0e94a000;  // OR     R20,R20,R20  -- dummy instr. 
+M2.MEMORY[3]  = 32'h21430000;  // LW     R3,0(R10)
+M2.MEMORY[4]  = 32'h0e94a000;  // OR     R20,R20,R20  -- dummy instr. WHENEVER ANY DEPENDENCY
+M2.MEMORY[5]  = 32'h14431000;  // Loop:  MUL   R2,R2,R3
+M2.MEMORY[6]  = 32'h2c630001;  // SUBI   R3,R3,1
+M2.MEMORY[7]  = 32'h0e94a000;  // OR     R20,R20,R20  -- dummy instr.
+M2.MEMORY[8]  = 32'h3460fffc;  // BNEQZ  R3,Loop  (i.e. -4 OFFSET IN COMPLEMENT OF 2 FORM) MOST IMP BCZ PC WILL GET INCREMENT TO THIS 9TH INSTRUCTION AND WE HAVE TO GO TO 5TH INSTRUCTION AGAIN SO -4
+M2.MEMORY[9]  = 32'h2542fffe;  // SW     R2,-2(R10)
+M2.MEMORY[10] = 32'hfc000000;  // HLT
+
+M2.MEMORY[200] = 7;
+M2.IF_ID_IR=32'h0e94a000;
+M2.PC=0;
+M2.HALTED=0;
+M2.TAKEN_BRANCH=0;
+
+#2000 $display("MEM[200]: %4d, MEM[198] = %4d",M2.MEMORY[200],M2.MEMORY[198]);
+
+#10 $finish;
+end
+endmodule
