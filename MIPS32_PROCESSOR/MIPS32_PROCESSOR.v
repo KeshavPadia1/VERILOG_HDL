@@ -24,20 +24,23 @@ parameter ADD=6'b000000,SUB=6'b000001,AND=6'b000010,OR=6'b000011,
        
 parameter RR_ALU=3'b000,RM_ALU=3'b001,LOAD=3'b010,
           STORE=3'b011,BRANCH=3'b100,HALT=3'b101; // FOR TYPE
+          
+wire BRANCH_TAKEN_NOW = (((EX_MEM_IR[31:26] == BEQZ) && (EX_MEM_COND == 1)) ||
+   ((EX_MEM_IR[31:26] == BNEQZ) && (EX_MEM_COND == 0)));
+
+// THIS WIRE IS FOR FIXING THE PROBLEM OF MAKING DEFAULT VALUE OF TAKEN_BRANCH =0 IN EXE STAGE
 
 always @(posedge CLK1) // IF(INSTRUCTION FETCHING) STAGE
 begin
 if(HALTED == 0) // NO MORE FETCHING WHEN HALTED=1 GETS DETECT
 begin
 
-if(((EX_MEM_IR[31:26] == BEQZ) && (EX_MEM_COND == 1)) ||
-   ((EX_MEM_IR[31:26] == BNEQZ) && (EX_MEM_COND == 0)))
+if(BRANCH_TAKEN_NOW)
    
 begin
    IF_ID_IR <= #2 MEMORY[EX_MEM_ALUOUT]; // TIME DELAY IS TO AVOID RACE THROUGH CONDITION
    IF_ID_NPC <= #2 EX_MEM_ALUOUT + 1;
    PC <= #2 EX_MEM_ALUOUT + 1;
-   TAKEN_BRANCH <= #2 1'b1;
 end
 
 else
@@ -46,6 +49,9 @@ begin
    IF_ID_NPC <= #2 PC+1;
    PC <= #2 PC+1;
 end
+
+TAKEN_BRANCH <= #2 BRANCH_TAKEN_NOW;
+
 end
 end
 
@@ -83,7 +89,6 @@ if(HALTED==0)
 begin
 EX_MEM_TYPE <= #2 ID_EX_TYPE;
 EX_MEM_IR <= #2 ID_EX_IR;
-TAKEN_BRANCH <= #2 0; // DEFAULT VALUE OF TAKEN_BRANCH - WHEN NEEDED IF WILL MAKE IT 1
 
 case(ID_EX_TYPE)
 RR_ALU: begin
@@ -107,7 +112,7 @@ RM_ALU: begin
         end
 LOAD,STORE: begin
             EX_MEM_ALUOUT <= #2 ID_EX_A + ID_EX_IMM;
-            EX_MEM_B <= #2 ID_EX_B;
+            EX_MEM_B <= #2 ID_EX_B; // THIS IS FOR STORE ONLY
             end
 BRANCH: begin
         EX_MEM_ALUOUT <= #2 ID_EX_NPC + ID_EX_IMM;
@@ -117,6 +122,7 @@ endcase
 
 end
 end
+
 
 always @(posedge CLK2) // MEM(MEMORY) STAGE
 begin
